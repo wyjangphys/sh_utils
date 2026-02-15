@@ -9,7 +9,16 @@ if [ $? -ne 0 ] ; then
   exit 1
 fi
 
-run_command "Starting gpvm-scanner.service..." systemctl --user restart gpvm-scanner.service
+case "$(uname -s)" in
+  "Linux")
+    run_command "Starting gpvm-scanner.service..." systemctl --user restart gpvm-scanner.service
+    ;;
+  "Darwin")
+    run_command "Starting gpvm-scanner.service..." launchctl kickstart -k gui/$(id -) $HOME/Library/LaunchAgents/com.user.gpvm-scanner.plist
+    ;;
+  *)
+    ;;
+esac
 
 DUNE_FILE="$HOME/.local/etc/dunegpvm"
 ICARUS_FILE="$HOME/.local/etc/icarusgpvm"
