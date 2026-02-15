@@ -1,0 +1,222 @@
+# Lines configured by zsh-newuser-install
+HISTFILE=~/.histfile
+HISTSIZE=100000
+SAVEHIST=1000000
+bindkey -e
+# End of lines configured by zsh-newuser-install
+# The following lines were added by compinstall
+zstyle :compinstall filename '/home/wyjang/.zshrc'
+
+autoload -Uz compinit
+compinit
+# End of lines added by compinstall
+
+alias ls='ls --color'
+alias ll='ls -ahl'
+
+# pyenv virtual environment configuration
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+
+# end of pyenv config.
+
+alias spine-docker='docker run -it --rm --gpus all -v /home/wyjang/.local/opt/spine:/workspace/spine -w /workspace/spine deeplearnphysics/larcv2:ub20.04-cuda11.3-cudnn8-pytorch1.10.0-larndsim bash'
+
+. ~/.local/bin/utility.sh
+
+# setup root
+. ~/.local/opt/root/6.36.04/x86_64-archlinux-gnu/bin/thisroot.sh
+alias root="root --web=off"
+
+# setup geant4
+. ~/.local/opt/geant4/11.3.2/x86_64-archlinux-gnu/bin/geant4.sh
+
+alias kinit="kinit -A -f"
+
+#=_=_=_=_=_= added by fnal_utility (do not remove) =_=_=_=_=_=_=
+export FNAL_UTIL_ROOT="/home/wyjang/.local/../"
+alias appt=". /home/wyjang/.local/bin/setup-appt.sh"
+alias appt_build=". /home/wyjang/.local/bin/setup-appt-build.sh"
+alias setup-icarus=". /home/wyjang/.local/bin/setup-icarus-sl7.sh"
+alias setup-dune=". /home/wyjang/.local/bin/setup-dune.sh"
+alias setup-genie-bdm=". /home/wyjang/.local/bin/setup-genie-bdm.sh"
+alias setup-vnc=". /home/wyjang/.local/bin/setup-vnc.sh"
+alias clearcert="rm -fv /tmp/x509up_u$(id -u)"
+source /home/wyjang/.local/bin/dunegpvm_ssh_wrapper.sh
+#=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=_=
+
+# put this into your ~/.bashrc or ~/.zshrc and then source the file
+_dunegpvm_ssh_wrapper() {
+  # config
+  local sel_file="${HOME}/.local/etc/dunegpvm"
+  local domain="${DUNEGPVM_DOMAIN:-fnal.gov}"
+  local pad_width="${DUNEGPVM_PAD:-2}"
+  local fallback_action="${DUNEGPVM_FALLBACK:-error}"
+
+  # detect shell and handle arrays appropriately
+  if [ -n "${BASH_VERSION:-}" ]; then
+    # --- BASH path (0-based arrays) ---
+    local -a args=("$@")
+    local hostpos=-1
+    local i
+    for i in "${!args[@]}"; do
+      a="${args[$i]}"
+      if [ "${a#-}" = "$a" ] && [ "${a#*=}" = "$a" ]; then
+        hostpos=$i
+        break
+      fi
+    done
+
+    if [ "$hostpos" -lt 0 ]; then
+      command ssh "${args[@]}"
+      return $?
+    fi
+
+    local orig_target="${args[$hostpos]}"
+    local userpart=""
+    local hostpart="$orig_target"
+    if [[ "$orig_target" == *@* ]]; then
+      userpart="${orig_target%@*}"
+      hostpart="${orig_target#*@}"
+    fi
+
+    if [[ "$hostpart" =~ ^dunegpvm([[:digit:]]*)($|\.) ]]; then
+      if [ ! -r "$sel_file" ]; then
+        printf 'dunegpvm wrapper: selection file not found: %s\n' "$sel_file" >&2
+        [ "$fallback_action" = "raw" ] && command ssh "${args[@]}" || return 1
+      fi
+
+      local sel
+      sel="$(tr -d '[:space:]' < "$sel_file" 2>/dev/null || true)"
+
+      if [ -z "$sel" ] || [ "$sel" = "-1" ]; then
+        printf 'dunegpvm wrapper: no valid selection (value=%q)\n' "$sel" >&2
+        [ "$fallback_action" = "raw" ] && command ssh "${args[@]}" || return 2
+      fi
+
+      if ! printf '%s\n' "$sel" | grep -Eq '^[0-9]+$'; then
+        printf 'dunegpvm wrapper: selection is not numeric: %s\n' "$sel" >&2
+        return 3
+      fi
+
+      local sel_padded
+      sel_padded=$(printf "%0${pad_width}d" "$sel")
+
+      local newhost
+      if [ -n "$userpart" ]; then
+        newhost="${userpart}@dunegpvm${sel_padded}${domain}"
+      else
+        newhost="dunegpvm${sel_padded}${domain}"
+      fi
+
+      args[$hostpos]="$newhost"
+      printf 'ssh -> %s\n' "${args[$hostpos]}" >&2
+      command ssh "${args[@]}"
+      return $?
+    else
+      command ssh "${args[@]}"
+      return $?
+    fi
+
+  elif [ -n "${ZSH_VERSION:-}" ]; then
+    # --- ZSH path (1-based arrays) ---
+    typeset -a args
+    args=("$@")   # zsh arrays are 1-based
+    local hostpos=0
+    local idx=1
+    local a
+    for a in "${args[@]}"; do
+      # treat args starting with '-' as option; KEY=VAL skip
+      if [ "${a#-}" = "$a" ] && [ "${a#*=}" = "$a" ]; then
+        hostpos=$idx
+        break
+      fi
+      idx=$((idx+1))
+    done
+
+    if [ "$hostpos" -eq 0 ]; then
+      command ssh "${args[@]}"
+      return $?
+    fi
+
+    # in zsh arrays are 1-based, so args[hostpos] is correct
+    local orig_target="${args[$hostpos]}"
+    local userpart=""
+    local hostpart="$orig_target"
+    if [[ "$orig_target" == *@* ]]; then
+      userpart="${orig_target%@*}"
+      hostpart="${orig_target#*@}"
+    fi
+
+    if [[ "$hostpart" =~ ^dunegpvm([[:digit:]]*)($|\.) ]]; then
+      if [ ! -r "$sel_file" ]; then
+        printf 'dunegpvm wrapper: selection file not found: %s\n' "$sel_file" >&2
+        [ "$fallback_action" = "raw" ] && command ssh "${args[@]}" || return 1
+      fi
+
+      local sel
+      sel="$(tr -d '[:space:]' < "$sel_file" 2>/dev/null || true)"
+
+      if [ -z "$sel" ] || [ "$sel" = "-1" ]; then
+        printf 'dunegpvm wrapper: no valid selection (value=%q)\n' "$sel" >&2
+        [ "$fallback_action" = "raw" ] && command ssh "${args[@]}" || return 2
+      fi
+
+      if ! printf '%s\n' "$sel" | grep -Eq '^[0-9]+$'; then
+        printf 'dunegpvm wrapper: selection is not numeric: %s\n' "$sel" >&2
+        return 3
+      fi
+
+      local sel_padded
+      sel_padded=$(printf "%0${pad_width}d" "$sel")
+
+      local newhost
+      if [ -n "$userpart" ]; then
+        newhost="${userpart}@dunegpvm${sel_padded}${domain}"
+      else
+        newhost="dunegpvm${sel_padded}${domain}"
+      fi
+
+      args[$hostpos]="$newhost"
+      printf 'ssh -> %s\n' "${args[$hostpos]}" >&2
+      command ssh "${args[@]}"
+      return $?
+    else
+      command ssh "${args[@]}"
+      return $?
+    fi
+
+  else
+    # unknown shell: fall back to calling ssh with original args
+    command ssh "$@"
+    return $?
+  fi
+}
+
+# override ssh in interactive shells only
+case $- in
+  *i*) ssh() { _dunegpvm_ssh_wrapper "$@"; } ;;
+  *) : ;;
+esac
+
+
+# GPVM Scanner Aliases Start
+source /home/wyjang/.local/bin/gpvm_ssh_wrapper.sh
+# GPVM Scanner Aliases End
+
+# vscode gpvm launcher
+function code-dune() {
+  BEST_NODE=$(cat ~/.local/etc/dunegpvm)
+  BEST_NODE_PADDED=$(printf "%02d" $BEST_NODE)
+  TARGET_HOST="dunegpvm${BEST_NODE_PADDED}.fnal.gov"
+
+  echo "Connecting to the best node: $TARGET_HOST"
+
+  # run VS Code
+  code --remote ssh-remote+wyjang@$TARGET_HOST /nashome/w/wyjang
+}
+
+# kinit and gpvm-scanner service chain loader
+alias kinit='kinit -A -f wyjang@FNAL.GOV;systemctl --user restart gpvm-scanner.service&'
