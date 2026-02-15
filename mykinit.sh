@@ -14,7 +14,6 @@ run_command "Starting gpvm-scanner.service..." systemctl --user restart gpvm-sca
 DUNE_FILE="$HOME/.local/etc/dunegpvm"
 ICARUS_FILE="$HOME/.local/etc/icarusgpvm"
 
-printf "Waiting for daemon to find the best gpvm node...\n"
 count=0
 while [ $count -lt 10 ]; do
   if [ -f "$DUNE_FILE" ] && [ -f "$ICARUS_FILE" ] ; then
