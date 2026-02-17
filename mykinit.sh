@@ -14,7 +14,7 @@ case "$(uname -s)" in
     run_command "Starting gpvm-scanner.service..." systemctl --user restart gpvm-scanner.service
     ;;
   "Darwin")
-    run_command "Starting gpvm-scanner.service..." launchctl kickstart -k gui/$(id -) $HOME/Library/LaunchAgents/com.user.gpvm-scanner.plist
+    run_command "Starting gpvm-scanner.service..." launchctl kickstart -k gui/$(id -u)/com.user.gpvm-scanner
     ;;
   *)
     ;;
