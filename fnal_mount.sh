@@ -47,50 +47,53 @@ sshfs_mount() {
     "Linux")
       mnt_option_name="x-gvfs-name"
       ;;
-    "macOS")
+    "Darwin")
       mnt_option_name="volname"
       ;;
     *)
-      printf "Unsupported OS"
+      printf "Unsupported OS\n"
       exit 1
       ;;
   esac
 
   mkdir -p $all_mntpt
 
-  sshfs "dunegpvm${duneidx}.fnal.gov:/exp/dune/app/users/${USER}" $duneapp_mntpt -o "$mnt_option_name=dunegpvm-app"
-  sshfs "dunegpvm${duneidx}.fnal.gov:/exp/dune/data/users/${USER}" $dunedata_mntpt -o "$mnt_option_name=dunegpvm-data"
-  sshfs "icarusgpvm${icarusidx}.fnal.gov:/exp/icarus/app/users/${USER}" $icarusapp_mntpt -o "$mnt_option_name=icarusgpvm-app"
-  sshfs "icarusgpvm${icarusidx}.fnal.gov:/exp/icarus/data/users/${USER}" $icarusdata_mntpt -o "$mnt_option_name=icarusgpvm-data"
+  sshfs "dunegpvm${duneidx}.fnal.gov:/exp/dune/app/users/${USER}" $duneapp_mntpt -o "$mnt_option_name=dunegpvm-app" -o local
+  sshfs "dunegpvm${duneidx}.fnal.gov:/exp/dune/data/users/${USER}" $dunedata_mntpt -o "$mnt_option_name=dunegpvm-data" -o local
+  sshfs "icarusgpvm${icarusidx}.fnal.gov:/exp/icarus/app/users/${USER}" $icarusapp_mntpt -o "$mnt_option_name=icarusgpvm-app" -o local
+  sshfs "icarusgpvm${icarusidx}.fnal.gov:/exp/icarus/data/users/${USER}" $icarusdata_mntpt -o "$mnt_option_name=icarusgpvm-data" -o local
 }
 
 sshfs_umount() {
   ostype=$(detect_os)
   case "$ostype" in
     "Linux")
-      for mnt in $all_mntpt; do
-        fusermount -u "$mnt"
-      done
+      fusermount -u "$duneapp_mntpt"
+      fusermount -u "$dunedata_mntpt"
+      fusermount -u "$icarusapp_mntpt"
+      fusermount -u "$icarusdata_mntpt"
       ;;
-    "macOS")
-      for mnt in $all_mntpt; do
-        umount "$mnt" >/dev/null 2>&1
-      done
+    "Darwin")
+      umount "$duneapp_mntpt"
+      umount "$dunedata_mntpt"
+      umount "$icarusapp_mntpt"
+      umount "$icarusdata_mntpt"
       ;;
     *)
-      printf "unsupported os"
+      printf "unsupported os\n"
       exit 1
       ;;
   esac
 
-  return 0
+  echo 0
 }
 
 # ================== script entry point =====================
 
-if [ "$1" = "-u" ]; then
+if [ "$1" = "-u" ] ; then
   run_command "Unmounting all gpvm sshfs points..." sshfs_umount
-  exit 0
 fi
 
-run_command "Mounting gpvm sshfs points..." sshfs_mount
+if [ -z "$1" ] || [ "$1" = "-m" ] ; then
+  run_command "Mounting gpvm sshfs points..." sshfs_mount
+fi
