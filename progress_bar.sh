@@ -29,7 +29,7 @@ get_columns() {
   printf %s 80
 }
 
-# ---------- 시간 포맷: 초 -> H:MM:SS 또는 M:SS ----------
+# ---------- 시간 포맷: 초 -> HH:MM:SS 또는 M:SS ----------
 fmt_hms() {
   sec=$1
   [ -n "$sec" ] || sec=0
@@ -39,11 +39,11 @@ fmt_hms() {
   m=$(( (sec % 3600) / 60 ))
   s=$(( sec % 60 ))
 
-  if [ "$h" -gt 0 ]; then
-    # H:MM:SS
-    printf '%d:%02d:%02d' "$h" "$m" "$s"
+  if [ "$sec" -ge 600 ]; then
+    # 10분 이상은 HH:MM:SS
+    printf '%02d:%02d:%02d' "$h" "$m" "$s"
   else
-    # M:SS
+    # 10분 미만은 M:SS
     printf '%d:%02d' "$m" "$s"
   fi
 }
@@ -116,6 +116,9 @@ progress_bar() {
     fi
   fi
 
+  elapsed_sec=$(( now - PB_START_TIME ))
+  elapsed_text="ELAPSED $(fmt_hms "$elapsed_sec")"
+
   percent=$(( current * 100 / total ))
   percent_text=$(printf '%3d%%' "$percent")
 
@@ -142,25 +145,32 @@ progress_bar() {
     fi
   fi
 
-  # 메타 문자열(퍼센트/속도/ETA) 구성 및 가변 표시
-  tail_full=" $percent_text $rate_text $eta_text"
+  # 메타 문자열(퍼센트/속도/ETA/소요시간) 구성 및 가변 표시
+  tail_full=" $percent_text $rate_text $eta_text $elapsed_text"
   overhead=$(( 2 + ${#tail_full} ))  # [ ] + tail 전체 길이
   inner_width=$(( width - overhead ))
-  # 너무 좁으면 일부 항목 제거
+  # 너무 좁으면 일부 항목 제거: ETA → rate → percent, 단 elapsed는 오른쪽 마지막 칼럼으로 유지
   tail_used="$tail_full"
   if [ "$inner_width" -lt 1 ]; then
     # 먼저 ETA 제거
-    tail_no_eta=" $percent_text $rate_text"
+    tail_no_eta=" $percent_text $rate_text $elapsed_text"
     overhead=$(( 2 + ${#tail_no_eta} ))
     inner_width=$(( width - overhead ))
     tail_used="$tail_no_eta"
   fi
   if [ "$inner_width" -lt 1 ]; then
     # 다음으로 rate 제거
-    tail_no_rate=" $percent_text"
+    tail_no_rate=" $percent_text $elapsed_text"
     overhead=$(( 2 + ${#tail_no_rate} ))
     inner_width=$(( width - overhead ))
     tail_used="$tail_no_rate"
+  fi
+  if [ "$inner_width" -lt 1 ]; then
+    # 마지막으로 percent도 제거하고 elapsed만 남김
+    tail_elapsed=" $elapsed_text"
+    overhead=$(( 2 + ${#tail_elapsed} ))
+    inner_width=$(( width - overhead ))
+    tail_used="$tail_elapsed"
   fi
   if [ "$inner_width" -lt 1 ]; then
     inner_width=1
