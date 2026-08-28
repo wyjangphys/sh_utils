@@ -201,19 +201,20 @@ progress_bar() {
 }
 
 # ---------- 데모 ----------
-# 아래 데모는 필요 시 주석 해제하여 테스트하세요.
-#total=500
-#progress_init "$total"
-#i=0
-#while [ "$i" -le "$total" ]; do
-#  progress_bar "$i" "$total"
-#  # 작업 시뮬레이션
-#  sleep 0.05
-#  step=$(( (i/50)  ))   # 점점 빨라지는 예시
-#  i=$(( i + step ))
-#done
-for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 19 19 19 20 35 50 65 80 90 100; do
-  progress_bar "$i" 100
-  sleep 0.05
-done
-[ -t 1 ] && printf '\n'
+# 아래 데모는 파일을 직접 실행할 때만 동작합니다.
+# 다른 스크립트에서 . ./progress_bar.sh 처럼 소스해서 사용하면 자동으로 실행되지 않습니다.
+if [ "${0##*/}" = "progress_bar.sh" ]; then
+  for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 19 19 19 20 35 50 65 80 90 100; do
+    progress_bar "$i" 100
+    sleep 0.05
+  done
+  [ -t 1 ] && printf '\n'
+fi
+
+# 사용 예시:
+# . /path/to/progress_bar.sh
+# progress_init 100
+# for i in $(seq 0 100); do
+#   progress_bar "$i" 100
+#   sleep 0.1
+# done
